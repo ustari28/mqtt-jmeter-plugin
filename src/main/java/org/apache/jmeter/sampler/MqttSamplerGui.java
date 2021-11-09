@@ -23,9 +23,16 @@ public class MqttSamplerGui extends AbstractSamplerGui {
     JTextField clientKeyText = new JTextField();
     JPasswordField clientPasswordKeyText = new JPasswordField();
     JTextField messageText = new JTextField();
+    JTextField responseCodeText = new JTextField();
+    JTextField responseMessageText = new JTextField();
+    JTextField responseTimeText = new JTextField();
 
     public MqttSamplerGui() {
         log.info("Creating GUI");
+        responseCodeText.setEnabled(false);
+        responseMessageText.setEnabled(false);
+        responseTimeText.setEnabled(false);
+        messageText.setText("Some message");
         createComponents();
     }
 
@@ -42,24 +49,17 @@ public class MqttSamplerGui extends AbstractSamplerGui {
     @Override
     public void modifyTestElement(TestElement testElement) {
         super.configureTestElement(testElement);
-        StringBuilder sb = new StringBuilder();
         //Here we merge sampler with gui
-        MqttSampler sampler = (MqttSampler) testElement;
-        sampler.setCa(caText.getText().trim());
-        sampler.setClientCrt(clientCrtText.getText().trim());
-        sampler.setClientKey(clientKeyText.getText().trim());
-        sampler.setClientPasswordKey(clientPasswordKeyText.getPassword());
-        sampler.setSsl(Boolean.FALSE);
-        if (tcpProtocolCheckBox.isSelected()) {
-            sb.append("tcp://");
-        } else if (sslProtocolCheckBox.isSelected()) {
-            sb.append("ssl://");
-            sampler.setSsl(Boolean.TRUE);
-        }
-        sb.append(serverText.getText().trim()).append(":").append(portText.getText().trim());
-        sampler.setUrl(sb.toString());
-        sampler.setUsername(userText.getText().trim());
-        sampler.setPassword(passwordText.getPassword());
+        testElement.setProperty(MqttSampler.CA_PROP, caText.getText().trim());
+        testElement.setProperty(MqttSampler.CLIENT_CER_PROP, clientCrtText.getText().trim());
+        testElement.setProperty(MqttSampler.CLIENT_KEY_PROP, clientKeyText.getText().trim());
+        testElement.setProperty(MqttSampler.CLIENT_PASSWORD_PROP, String.valueOf(clientPasswordKeyText.getPassword()));
+        testElement.setProperty(MqttSampler.SSL_PROP, sslProtocolCheckBox.isSelected());
+        testElement.setProperty(MqttSampler.SERVER_PROP, serverText.getText().trim());
+        testElement.setProperty(MqttSampler.PORT_PROP, portText.getText().trim());
+        testElement.setProperty(MqttSampler.USERNAME_PROP, userText.getText().trim());
+        testElement.setProperty(MqttSampler.PASSWORD_PROP, String.valueOf(passwordText.getPassword()));
+        testElement.setProperty(MqttSampler.MESSAGE_PROP, messageText.getText().trim());
     }
 
     private void createComponents() {
@@ -70,21 +70,35 @@ public class MqttSamplerGui extends AbstractSamplerGui {
     }
 
     private JPanel makeMyPanel() {
-        JPanel panel = new JPanel();
+        JPanel mqtt = new JPanel();
+        JPanel result = new JPanel();
+        JPanel config = new JPanel();
         JPanel chkBoxes = new JPanel();
-        JPanel coms = new JPanel();
         JPanel auth = new JPanel();
         JPanel certificates = new JPanel();
 
-        panel.setBorder(BorderFactory.createTitledBorder("MQTT Config"));
-        panel.setLayout(new FlowLayout());
-        //panel.setMaximumSize(new Dimension(30, 30));
+        JPanel caPanel = new JPanel();
+        JPanel certPanel = new JPanel();
+        JPanel keyPanel = new JPanel();
+        JPanel keyPasswordPanel = new JPanel();
+        caPanel.setLayout(new BoxLayout(caPanel, BoxLayout.X_AXIS));
+        certPanel.setLayout(new BoxLayout(certPanel, BoxLayout.X_AXIS));
+        keyPanel.setLayout(new BoxLayout(keyPanel, BoxLayout.X_AXIS));
+        keyPasswordPanel.setLayout(new BoxLayout(keyPasswordPanel, BoxLayout.X_AXIS));
+
+        config.setBorder(BorderFactory.createTitledBorder(BorderFactory.createTitledBorder("MQTT Config")));
+        result.setBorder(BorderFactory.createTitledBorder(BorderFactory.createTitledBorder("MQTT Result")));
+        config.setLayout(new BoxLayout(config, BoxLayout.Y_AXIS));
+        result.setLayout(new GridLayout(3, 3, 20, 20));
+        mqtt.setLayout(new BoxLayout(mqtt, BoxLayout.Y_AXIS));
+
+        config.setMaximumSize(new Dimension(800, 250));
+        result.setMaximumSize(new Dimension(800, 200));
+        mqtt.setMaximumSize(new Dimension(800, 450));
 
         chkBoxes.setLayout(new GridLayout(1, 3));
-        coms.setLayout(new GridLayout(1, 4));
-        auth.setLayout(new GridLayout(1, 4));
-        certificates.setLayout(new GridLayout(4,3));
-        //GroupLayout protocolLayout = new GroupLayout(panel);
+        auth.setLayout(new GridLayout(3, 2));
+        certificates.setLayout(new BoxLayout(certificates, BoxLayout.Y_AXIS));
 
         JLabel protocolLabel = new JLabel("Protocol");
         JLabel serverLabel = new JLabel("Server IP");
@@ -96,6 +110,11 @@ public class MqttSamplerGui extends AbstractSamplerGui {
         JLabel clientKeyLabel = new JLabel("Client Key");
         JLabel clientPasswordKeyLabel = new JLabel("Client Password Key");
         JLabel messageLabel = new JLabel("Message");
+        JLabel responseCodeLabel = new JLabel("Response code");
+        JLabel responseMessageLabel = new JLabel("Response message");
+        JLabel responseTime = new JLabel("Response Time");
+
+        caLabel.setMinimumSize(new Dimension(200, 30));
 
         JFileChooser caFC = new JFileChooser();
         JFileChooser clientFC = new JFileChooser();
@@ -106,27 +125,27 @@ public class MqttSamplerGui extends AbstractSamplerGui {
 
         JButton caButton = new JButton("...");
         JButton clientButton = new JButton("...");
-        JButton clientKeyButton = new JButton("..");
+        JButton clientKeyButton = new JButton("...");
 
-        caButton.setMaximumSize(new Dimension(10,5));
+        caButton.setMinimumSize(new Dimension(50, 20));
 
         caButton.setToolTipText("Select CA chain");
         clientButton.setToolTipText("Select Client Certificate");
         clientKeyButton.setToolTipText("Select Client Private Key");
         caButton.addActionListener(e -> {
-            int optionSelected = caFC.showOpenDialog(panel);
+            int optionSelected = caFC.showOpenDialog(config);
             if (optionSelected == JFileChooser.APPROVE_OPTION) {
                 caText.setText(caFC.getSelectedFile().getAbsolutePath());
             }
         });
         clientButton.addActionListener(e -> {
-            int optionSelected = clientFC.showOpenDialog(panel);
+            int optionSelected = clientFC.showOpenDialog(config);
             if (optionSelected == JFileChooser.APPROVE_OPTION) {
                 clientCrtText.setText(clientFC.getSelectedFile().getAbsolutePath());
             }
         });
         clientKeyButton.addActionListener(e -> {
-            int optionSelected = clientKeyFC.showOpenDialog(panel);
+            int optionSelected = clientKeyFC.showOpenDialog(config);
             if (optionSelected == JFileChooser.APPROVE_OPTION) {
                 clientKeyText.setText(clientKeyFC.getSelectedFile().getAbsolutePath());
             }
@@ -139,82 +158,69 @@ public class MqttSamplerGui extends AbstractSamplerGui {
         tcpProtocolCheckBox.setSelected(Boolean.TRUE);
         protocolGroup.add(tcpProtocolCheckBox);
         protocolGroup.add(sslProtocolCheckBox);
+
         chkBoxes.add(protocolLabel);
         chkBoxes.add(tcpProtocolCheckBox);
         chkBoxes.add(sslProtocolCheckBox);
-        coms.add(serverLabel);
-        coms.add(serverText);
-        coms.add(portLabel);
-        coms.add(portText);
+        auth.add(serverLabel);
+        auth.add(serverText);
+        auth.add(portLabel);
+        auth.add(portText);
         auth.add(userLabel);
         auth.add(userText);
         auth.add(passwordLabel);
         auth.add(passwordText);
-        certificates.add(caLabel);
-        certificates.add(caText);
-        certificates.add(caButton);
-        certificates.add(clientCrtLabel);
-        certificates.add(clientCrtText);
-        certificates.add(clientButton);
-        certificates.add(clientKeyLabel);
-        certificates.add(clientKeyText);
-        certificates.add(clientKeyButton);
-        certificates.add(clientPasswordKeyLabel);
-        certificates.add(clientPasswordKeyText);
+        auth.add(messageLabel);
+        auth.add(messageText);
+        caPanel.add(caLabel);
+        caPanel.add(caText);
+        caPanel.add(caButton);
 
-        panel.add(chkBoxes);
-        panel.add(coms);
-        panel.add(auth);
-        panel.add(certificates);
 
-/**
- protocolLayout.setVerticalGroup(
- protocolLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(protocolLabel)
- .addComponent(tcpProtocolCheckBox)
- .addComponent(sslProtocolCheckBox))
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(serverLabel)
- .addComponent(serverText)
- .addComponent(portLabel)
- .addComponent(portText))
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(userLabel)
- .addComponent(userText)
- .addComponent(passwordLabel)
- .addComponent(passwordText))
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(caLabel)
- .addComponent(caText))
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(clientCrtLabel)
- .addComponent(clientCrtText))
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(clientKeyLabel)
- .addComponent(clientKeyText))
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(clientPasswordKeyLabel)
- .addComponent(clientPasswordKeyText))
- .addGroup(protocolLayout.createSequentialGroup()
- .addComponent(messageLabel)
- .addComponent(messageText)));
+        certPanel.add(clientCrtLabel);
+        certPanel.add(clientCrtText);
+        certPanel.add(clientButton);
+        keyPanel.add(clientKeyLabel);
+        keyPanel.add(clientKeyText);
+        keyPanel.add(clientKeyButton);
+        keyPasswordPanel.add(clientPasswordKeyLabel);
+        keyPasswordPanel.add(clientPasswordKeyText);
 
- */
+        certificates.add(caPanel);
+        certificates.add(certPanel);
+        certificates.add(keyPanel);
+        certificates.add(keyPasswordPanel);
 
-        return panel;
+        config.add(chkBoxes);
+        config.add(auth);
+        config.add(certificates);
+
+        result.add(responseCodeLabel);
+        result.add(responseCodeText);
+        result.add(responseTime);
+        result.add(responseTimeText);
+        result.add(responseMessageLabel);
+        result.add(responseMessageText);
+
+        mqtt.add(config);
+        mqtt.add(result);
+
+        return mqtt;
     }
 
     @Override
     public void configure(TestElement element) {
         super.configure(element);
-        //set values for you GUI
+        serverText.setText(element.getPropertyAsString("serverIP", "127.0.0.1"));
+        portText.setText(element.getPropertyAsString("port", "1883"));
+        userText.setText(element.getPropertyAsString("username", "guest"));
+        passwordText.setText(element.getPropertyAsString("password", "guest"));
     }
 
     @Override
     public TestElement createTestElement() {
         MqttSampler sampler = new MqttSampler();
-        configureTestElement(sampler);
+        modifyTestElement(sampler);
         return sampler;
     }
 
